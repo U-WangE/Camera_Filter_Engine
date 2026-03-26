@@ -1,54 +1,36 @@
 package com.uwange.camera_filter_engine.presentation.camera
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import com.uwange.camera_filter_engine.core.mvi.MviViewModel
+import com.uwange.camera_filter_engine.domain.camera.model.CameraPermissionStatus
+import com.uwange.camera_filter_engine.domain.camera.usecase.ResolveCameraPermissionStatusUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class CameraViewModel @Inject constructor() : ViewModel() {
-    private val _state = MutableStateFlow(CameraState())
-    val state = _state.asStateFlow()
+class CameraViewModel @Inject constructor(
+    private val resolveCameraPermissionStatusUseCase: ResolveCameraPermissionStatusUseCase,
+) : MviViewModel<CameraState, CameraIntent, CameraEffect>(CameraState()) {
 
-    private val _effect = Channel<CameraEffect>(Channel.BUFFERED)
-    val effect = _effect.receiveAsFlow()
-
-    fun onIntent(intent: CameraIntent) {
+    override fun onIntent(intent: CameraIntent) {
         when (intent) {
-            CameraIntent.OnEnterScreen -> handleEnterScreen()
-            is CameraIntent.OnPermissionResult -> handleCheckCameraPermission(intent.granted)
+            CameraIntent.RequestPermission -> sendEffect(CameraEffect.LaunchPermissionRequest)
+            is CameraIntent.PermissionResult -> handlePermissionResult(intent)
+            CameraIntent.DismissPermissionDialog -> setState { it.copy(isDialogVisible = false) }
+            CameraIntent.OpenAppSettings -> sendEffect(CameraEffect.OpenAppSettings)
         }
     }
 
-    private fun handleEnterScreen() {
-        if (_state.value.hasCameraPermission) {
-            _state.update { currentState ->
-                currentState.copy(isPermissionChecked = true)
-            }
-            return
-        }
+    private fun handlePermissionResult(intent: CameraIntent.PermissionResult) {
+        val status = resolveCameraPermissionStatusUseCase(
+            granted = intent.granted,
+            shouldShowRationale = intent.shouldShowRationale,
+        )
 
-        sendEffect(CameraEffect.RequestCameraPermission)
-    }
-
-    private fun handleCheckCameraPermission(granted: Boolean) {
-        _state.update { currentState ->
-            currentState.copy(
-                hasCameraPermission = granted,
-                isPermissionChecked = true
+        setState {
+            it.copy(
+                permissionStatus = status,
+                isDialogVisible = status != CameraPermissionStatus.Granted,
             )
-        }
-    }
-
-    private fun sendEffect(effect: CameraEffect) {
-        viewModelScope.launch {
-            _effect.send(effect)
         }
     }
 }

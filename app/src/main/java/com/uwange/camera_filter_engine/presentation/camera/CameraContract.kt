@@ -1,15 +1,27 @@
 package com.uwange.camera_filter_engine.presentation.camera
 
-data class CameraState(
-    val hasCameraPermission: Boolean = false,
-    val isPermissionChecked: Boolean = false
-)
+import com.uwange.camera_filter_engine.core.mvi.UiEffect
+import com.uwange.camera_filter_engine.core.mvi.UiIntent
+import com.uwange.camera_filter_engine.core.mvi.UiState
+import com.uwange.camera_filter_engine.domain.camera.model.CameraPermissionStatus
 
-sealed interface CameraIntent {
-    data object OnEnterScreen: CameraIntent
-    data class OnPermissionResult(val granted: Boolean): CameraIntent
+data class CameraState(
+    val permissionStatus: CameraPermissionStatus = CameraPermissionStatus.Idle,
+    val isDialogVisible: Boolean = false,
+) : UiState
+
+sealed interface CameraIntent : UiIntent {
+    data object RequestPermission : CameraIntent
+    data class PermissionResult(
+        val granted: Boolean,
+        val shouldShowRationale: Boolean,
+    ) : CameraIntent
+
+    data object DismissPermissionDialog : CameraIntent
+    data object OpenAppSettings : CameraIntent
 }
 
-sealed interface CameraEffect {
-    data object RequestCameraPermission : CameraEffect
+sealed interface CameraEffect : UiEffect {
+    data object LaunchPermissionRequest : CameraEffect
+    data object OpenAppSettings : CameraEffect
 }
