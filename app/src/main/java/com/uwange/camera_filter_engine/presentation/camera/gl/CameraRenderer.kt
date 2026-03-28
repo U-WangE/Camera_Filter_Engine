@@ -4,6 +4,9 @@ import android.graphics.SurfaceTexture
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import com.uwange.camera_filter_engine.domain.camera.model.FilterType
+import com.uwange.camera_filter_engine.presentation.camera.gl.shader.FilterShader
+import com.uwange.camera_filter_engine.presentation.camera.gl.shader.GrayscaleShader
 import com.uwange.camera_filter_engine.presentation.camera.gl.shader.PassthroughShader
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,8 +24,25 @@ class CameraRenderer: GLSurfaceView.Renderer {
     @Volatile private var isFrameAvailable: Boolean = false
     private val texMatrix = FloatArray(16)
 
+    @Volatile private var pendingShader: FilterShader? = PassthroughShader()
+
+    fun setFilter(type: FilterType) {
+        pendingShader = when (type) {
+            FilterType.NONE -> PassthroughShader()
+            FilterType.GRAYSCALE -> GrayscaleShader()
+        }
+    }
+
+    private fun applyPendingShader() {
+        val shader = pendingShader ?: return
+        if (programId != 0) GLES20.glDeleteProgram(programId)
+        programId = GLHelper.buildProgram(shader)
+        pendingShader = null
+    }
+
     // frame마다 그림
     override fun onDrawFrame(gl: GL10?) {
+        applyPendingShader()
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 
         if (isFrameAvailable) {
@@ -67,7 +87,7 @@ class CameraRenderer: GLSurfaceView.Renderer {
             }
         }
 
-        programId = GLHelper.buildProgram(PassthroughShader())
+        applyPendingShader()
     }
 
     private fun drawQuad(programId: Int) {

@@ -12,17 +12,20 @@ import android.view.Surface
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -34,7 +37,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.uwange.camera_filter_engine.R
 import com.uwange.camera_filter_engine.domain.camera.model.CameraPermissionStatus
-import com.uwange.camera_filter_engine.presentation.camera.gl.CameraGLSurfaceView
+import com.uwange.camera_filter_engine.domain.camera.model.FilterType
 import com.uwange.camera_filter_engine.presentation.camera.gl.CameraRenderer
 import com.uwange.camera_filter_engine.ui.theme.component.ConfirmDialog
 import kotlinx.coroutines.flow.filterNotNull
@@ -94,6 +97,10 @@ fun CameraRoute(viewModel: CameraViewModel = hiltViewModel()) {
         state = state,
         onRetryPermission = { viewModel.onIntent(CameraIntent.RequestPermission) },
         onOpenSettings = { viewModel.onIntent(CameraIntent.OpenAppSettings) },
+        onFilterToggle = {
+            val next = if (state.filterType == FilterType.NONE) FilterType.GRAYSCALE else FilterType.NONE
+            viewModel.onIntent(CameraIntent.SelectFilter(next))
+        },
     )
 }
 
@@ -102,12 +109,23 @@ fun CameraScreen(
     state: CameraState,
     onRetryPermission: () -> Unit,
     onOpenSettings: () -> Unit,
+    onFilterToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         when (state.permissionStatus) {
             CameraPermissionStatus.Idle -> Unit
-            CameraPermissionStatus.Granted -> CameraPreview()
+            CameraPermissionStatus.Granted -> {
+                CameraPreview(filterType = state.filterType)
+                Button(
+                    onClick = onFilterToggle,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 32.dp),
+                ) {
+                    Text(if (state.filterType == FilterType.NONE) "Grayscale" else "Normal")
+                }
+            }
             CameraPermissionStatus.Denied -> {
                 ConfirmDialog(
                     title = stringResource(R.string.camera_permission_title),
@@ -131,12 +149,17 @@ fun CameraScreen(
 
 @Composable
 private fun CameraPreview(
+    filterType: FilterType = FilterType.NONE,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val renderer = remember {
         CameraRenderer()
+    }
+
+    LaunchedEffect(filterType) {
+        renderer.setFilter(filterType)
     }
 
     LaunchedEffect(renderer) {

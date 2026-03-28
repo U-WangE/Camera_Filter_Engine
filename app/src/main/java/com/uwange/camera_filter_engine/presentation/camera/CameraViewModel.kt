@@ -17,6 +17,7 @@ class CameraViewModel @Inject constructor(
             is CameraIntent.PermissionResult -> handlePermissionResult(intent)
             CameraIntent.DismissPermissionDialog -> setState { it.copy(isDialogVisible = false) }
             CameraIntent.OpenAppSettings -> sendEffect(CameraEffect.OpenAppSettings)
+            is CameraIntent.SelectFilter -> setState { it.copy(filterType = intent.type) }
         }
     }
 
