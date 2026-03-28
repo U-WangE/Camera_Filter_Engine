@@ -2,9 +2,13 @@ package com.uwange.camera_filter_engine.presentation.camera
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.graphics.SurfaceTexture
 import android.net.Uri
+import android.opengl.GLSurfaceView
 import android.provider.Settings
+import android.view.Surface
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -20,7 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -28,7 +34,10 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.uwange.camera_filter_engine.R
 import com.uwange.camera_filter_engine.domain.camera.model.CameraPermissionStatus
+import com.uwange.camera_filter_engine.presentation.camera.gl.CameraGLSurfaceView
+import com.uwange.camera_filter_engine.presentation.camera.gl.CameraRenderer
 import com.uwange.camera_filter_engine.ui.theme.component.ConfirmDialog
+import kotlinx.coroutines.flow.filterNotNull
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -126,34 +135,57 @@ private fun CameraPreview(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val previewView = remember {
-        PreviewView(context)
-    }
-    val preview = remember {
-        Preview.Builder().build()
+    val renderer = remember {
+        CameraRenderer()
     }
 
-    DisposableEffect(lifecycleOwner, context) {
+    LaunchedEffect(renderer) {
+        renderer.surfaceTexture
+            .filterNotNull()
+            .collect { surfaceTexture ->
+                bindCamera(context, lifecycleOwner, surfaceTexture)
+            }
+    }
+
+    AndroidView(
+        factory = {
+            GLSurfaceView(context).apply {
+                setEGLContextClientVersion(2)
+                setRenderer(renderer)
+                renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+            }
+        },
+        modifier = modifier
+    )
+}
+
+private fun bindCamera(
+    context: Context,
+    lifecycleOwner: LifecycleOwner,
+    surfaceTexture: SurfaceTexture,
+) {
+    val executor = ContextCompat.getMainExecutor(context)
+    ProcessCameraProvider.getInstance(context).addListener({
         val cameraProvider = ProcessCameraProvider.getInstance(context).get()
+        val surface = Surface(surfaceTexture)
 
-        preview.surfaceProvider = previewView.surfaceProvider
-
-        val selector = CameraSelector.DEFAULT_BACK_CAMERA
+        val preview = Preview.Builder().build().also {
+            it.setSurfaceProvider { request ->
+                surfaceTexture.setDefaultBufferSize(
+                    request.resolution.width,
+                    request.resolution.height,
+                )
+                request.provideSurface(surface, executor) {
+                    surface.release()
+                }
+            }
+        }
 
         cameraProvider.unbindAll()
         cameraProvider.bindToLifecycle(
             lifecycleOwner,
-            selector,
-            preview
+            CameraSelector.DEFAULT_BACK_CAMERA,
+            preview,
         )
-
-        onDispose {
-            cameraProvider.unbindAll()
-        }
-    }
-
-    AndroidView(
-        factory = { previewView },
-        modifier = modifier
-    )
+    }, executor)
 }
