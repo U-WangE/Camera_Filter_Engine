@@ -8,7 +8,6 @@ import com.uwange.camera_filter_engine.domain.camera.model.FilterType
 
 data class CameraState(
     val permissionStatus: CameraPermissionStatus = CameraPermissionStatus.Idle,
-    val isDialogVisible: Boolean = false,
     val filterType: FilterType = FilterType.NONE,
 ) : UiState
 
@@ -19,7 +18,6 @@ sealed interface CameraIntent : UiIntent {
         val shouldShowRationale: Boolean,
     ) : CameraIntent
 
-    data object DismissPermissionDialog : CameraIntent
     data object OpenAppSettings : CameraIntent
     data class SelectFilter(val type: FilterType) : CameraIntent
 }

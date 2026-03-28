@@ -2,9 +2,10 @@ package com.uwange.camera_filter_engine.presentation.camera.gl
 
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
-import com.uwange.camera_filter_engine.presentation.camera.gl.shader.FilterShader
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
-object GLHelper {
+object GlHelper {
     fun createExternalTexture(): Int {
         val textureIds = IntArray(1)
         GLES20.glGenTextures(1, textureIds, 0)
@@ -36,9 +37,9 @@ object GLHelper {
         return textureId
     }
 
-    fun buildProgram(shader: FilterShader): Int {
-        val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, shader.vertexShaderCode)
-        val fragmentShader = compileShader(GLES20.GL_FRAGMENT_SHADER, shader.fragmentShaderCode)
+    fun buildProgram(vertexShaderCode: String, fragmentShaderCode: String): Int {
+        val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
+        val fragmentShader = compileShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
 
         return GLES20.glCreateProgram().also { program ->
             GLES20.glAttachShader(program, vertexShader)
@@ -48,6 +49,36 @@ object GLHelper {
             GLES20.glDeleteShader(fragmentShader)
         }
     }
+
+    fun drawQuad(programId: Int) {
+        val vertices = floatArrayOf(
+            -1f, -1f, 0f, 0f,
+            1f, -1f, 1f, 0f,
+            -1f,  1f, 0f, 1f,
+            1f,  1f, 1f, 1f,
+        )
+        val buffer = ByteBuffer.allocateDirect(vertices.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .put(vertices)
+        buffer.position(0)
+
+        val stride = 4 * 4
+
+        val aPosition = GLES20.glGetAttribLocation(programId, "aPosition")
+        val aTexCoord = GLES20.glGetAttribLocation(programId, "aTexCoord")
+
+        buffer.position(0)
+        GLES20.glVertexAttribPointer(aPosition, 2, GLES20.GL_FLOAT, false, stride, buffer)
+        GLES20.glEnableVertexAttribArray(aPosition)
+
+        buffer.position(2)
+        GLES20.glVertexAttribPointer(aTexCoord, 2, GLES20.GL_FLOAT, false, stride, buffer)
+        GLES20.glEnableVertexAttribArray(aTexCoord)
+
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+    }
+
 
     private fun compileShader(type: Int, code: String): Int =
         GLES20.glCreateShader(type).also { shader ->

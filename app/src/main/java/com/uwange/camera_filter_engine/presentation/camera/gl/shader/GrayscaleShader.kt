@@ -1,11 +1,14 @@
 package com.uwange.camera_filter_engine.presentation.camera.gl.shader
 
-class GrayscaleShader: FilterShader {
+import com.uwange.camera_filter_engine.presentation.camera.gl.GlFrameFilter
+
+class GrayscaleShader: GlFrameFilter {
+    override val name: String = "Grayscale"
     override val fragmentShaderCode: String = """
         #extension GL_OES_EGL_image_external : require
         precision mediump float;
 
-        uniform samplerExternalOES uTexture;
+        uniform sampler2D uTexture;
         varying vec2 vTexCoord;
 
         void main() {

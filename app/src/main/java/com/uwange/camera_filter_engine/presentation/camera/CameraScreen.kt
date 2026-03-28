@@ -41,6 +41,7 @@ import com.uwange.camera_filter_engine.domain.camera.model.FilterType
 import com.uwange.camera_filter_engine.presentation.camera.gl.CameraRenderer
 import com.uwange.camera_filter_engine.ui.theme.component.ConfirmDialog
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -163,11 +164,10 @@ private fun CameraPreview(
     }
 
     LaunchedEffect(renderer) {
-        renderer.surfaceTexture
+        val surfaceTexture = renderer.surfaceTexture
             .filterNotNull()
-            .collect { surfaceTexture ->
-                bindCamera(context, lifecycleOwner, surfaceTexture)
-            }
+            .first()
+        bindCamera(context, lifecycleOwner, surfaceTexture)
     }
 
     AndroidView(
