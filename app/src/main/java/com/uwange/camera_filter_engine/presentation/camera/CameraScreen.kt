@@ -23,9 +23,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -159,6 +161,8 @@ private fun CameraPreview(
         CameraRenderer()
     }
 
+    val frameTimeMs by renderer.frameTimeMs.collectAsStateWithLifecycle()
+
     LaunchedEffect(filterType) {
         renderer.setFilter(filterType)
     }
@@ -170,16 +174,27 @@ private fun CameraPreview(
         bindCamera(context, lifecycleOwner, surfaceTexture)
     }
 
-    AndroidView(
-        factory = {
-            GLSurfaceView(context).apply {
-                setEGLContextClientVersion(2)
-                setRenderer(renderer)
-                renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
-            }
-        },
-        modifier = modifier
-    )
+    Box(modifier = modifier) {
+        AndroidView(
+            factory = {
+                GLSurfaceView(context).apply {
+                    setEGLContextClientVersion(2)
+                    setRenderer(renderer)
+                    renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+                }
+            },
+            modifier = modifier
+        )
+
+        Text(
+            text = "${frameTimeMs}ms",
+            color = Color.White,
+            fontSize = 18.sp,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 32.dp, end = 24.dp)
+        )
+    }
 }
 
 private fun bindCamera(

@@ -16,6 +16,9 @@ class CameraRenderer : GLSurfaceView.Renderer {
     private val _surfaceTexture = MutableStateFlow<SurfaceTexture?>(null)
     val surfaceTexture: StateFlow<SurfaceTexture?> = _surfaceTexture.asStateFlow()
 
+    private val _frameTimeMs = MutableStateFlow(0L)
+    val frameTimeMs: StateFlow<Long> = _frameTimeMs.asStateFlow()
+
     private var cameraTextureId = 0
     @Volatile private var isFrameAvailable = false
     private val texMatrix = FloatArray(16)
@@ -49,6 +52,8 @@ class CameraRenderer : GLSurfaceView.Renderer {
 
     // GL 스레드: 매 프레임
     override fun onDrawFrame(gl: GL10?) {
+        val startTime = System.nanoTime()
+
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 
         if (isFrameAvailable) {
@@ -61,5 +66,7 @@ class CameraRenderer : GLSurfaceView.Renderer {
             cameraTextureId = cameraTextureId,
             texMatrix = texMatrix,
         )
+
+        _frameTimeMs.value = (System.nanoTime() - startTime) / 1_000_000
     }
 }
